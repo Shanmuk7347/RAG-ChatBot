@@ -29,9 +29,15 @@ def build_vector_data():
         return
 
     print("Starting Markdown splitting...")
-    all_markdown = "\n\n".join([doc.page_content for doc in documents])
     md_splitter = MarkdownHeaderTextSplitter(headers_to_split_on=[("#", "Header 1"), ("##", "Header 2"), ("###", "Header 3")])
-    md_splits = md_splitter.split_text(all_markdown)
+    #Spliting using markdown splitter and linking them to their sources 
+    md_splits = []
+    for doc in documents:
+        splits = md_splitter.split_text(doc.page_content)
+        #Linking the split to its source
+        for split in splits:
+            split.metadata["source"] = doc.metadata["source"]
+        md_splits.extend(splits)
 
     #Reduce the tokens so that model dosen't go beyond its context window
     print("Splitting markdown into chunks for token limiting...")
