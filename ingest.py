@@ -1,19 +1,42 @@
-from langchain_community.document_loaders import PyMuPDFLoader, DirectoryLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_core.document_loaders import BaseLoader
+from langchain_community.document_loaders import DirectoryLoader
+from pymupdf4llm import to_markdown
+from langchain_text_splitters import RecursiveCharacterTextSplitter, MarkdownHeaderTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
+from langchain_core.documents import Document
+
+class PyMuPDFMarkdownLoader(BaseLoader):
+    def __init__(self, file_path:str):
+        self.file_path = file_path
+
+    def load(self):
+        md_text = to_markdown(self.file_path)
+        return [Document(page_content=md_text, metadata={"source": self.file_path})]
+
 
 def build_vector_data():
 
-    """ Loading Doucuments and storing them as vectors in ChromaDB """
+    """ Loading Documents and storing them as vectors in ChromaDB """
 
     print("Loading documents...")
-    dirloader = DirectoryLoader("./Docs", glob="**/*.pdf", loader_cls=PyMuPDFLoader, show_progress=True)
+    #Converting the text into markdown for structural Splitting
+    dirloader = DirectoryLoader("./Docs", glob="**/*.pdf", loader_cls=PyMuPDFMarkdownLoader, show_progress=True)
     documents = dirloader.load()
 
-    print("Splitting documents into chunks...")
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-    chunks = text_splitter.split_documents(documents)
+    if not documents:
+        print("Error: No PDFs found in the Docs directory. Halting ingestion.")
+        return
+
+    print("Starting Markdown splitting...")
+    all_markdown = "\n\n".join([doc.page_content for doc in documents])
+    md_splitter = MarkdownHeaderTextSplitter(headers_to_split_on=[("#", "Header 1"), ("##", "Header 2"), ("###", "Header 3")])
+    md_splits = md_splitter.split_text(all_markdown)
+
+    #Reduce the tokens so that model dosen't go beyond its context window
+    print("Splitting markdown into chunks for token limiting...")
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=50)
+    chunks = text_splitter.split_documents(md_splits)
 
     print("Creating embeddings...")
     #Using all-MiniLM-L6-v2 for embedding generation, it converts text in a 384-dimensional vector.
@@ -26,3 +49,4 @@ def build_vector_data():
 
 if __name__ == "__main__":
     build_vector_data()
+    
