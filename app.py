@@ -126,18 +126,10 @@ if prompt := st.chat_input("Ask anything"):
     # Storing user query in session state to display even after rerunning
     chat["messages"].append({"role": "user", "content": prompt})
 
-# Invoke retriever and chain to get the answer and sources
+# Invoke retriever and chain to get the source and answers
     with st.spinner("Searching through the docs..."):
-        st.write(
-    "Current Chat:",
-    chat["name"],
-    chat["id"],
-    "Docs:",
-    len(chat["docs"])
-)
         sources = get_retriever(chat["id"]).invoke(prompt)
         answer = get_chain(chat["id"]).invoke(prompt)
-# Retriver gives relavent documents along with the top 4 chunks that LLM uses as Context, whereas Chain gives the answer given by LLM
 
 # Displaying the answer and sources
     with st.chat_message("assistant"):
