@@ -1,5 +1,4 @@
 from langchain_core.document_loaders import BaseLoader
-from langchain_community.document_loaders import DirectoryLoader
 from pymupdf4llm import to_markdown
 from langchain_text_splitters import RecursiveCharacterTextSplitter, MarkdownHeaderTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -14,15 +13,19 @@ class PyMuPDFMarkdownLoader(BaseLoader):
         md_text = to_markdown(self.file_path)
         return [Document(page_content=md_text, metadata={"source": self.file_path})]
 
+def get_collection_name(chat_id:str):
+    return f"chat_{chat_id}"
 
-def build_vector_data():
+def build_vector_data(file_paths:list[str], chat_id:str):
 
     """ Loading Documents and storing them as vectors in ChromaDB """
 
     print("Loading documents...")
     #Converting the text into markdown for structural Splitting
-    dirloader = DirectoryLoader("./Docs", glob="**/*.pdf", loader_cls=PyMuPDFMarkdownLoader, show_progress=True)
-    documents = dirloader.load()
+    documents = []
+    for path in file_paths:
+        loader = PyMuPDFMarkdownLoader(path)
+        documents.extend(loader.load())
 
     if not documents:
         print("Error: No PDFs found in the Docs directory. Halting ingestion.")
@@ -49,10 +52,10 @@ def build_vector_data():
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
     print("Generating Vectors and storing them on disk...")
-    database = Chroma.from_documents(chunks, embeddings, collection_name="docs", persist_directory="./chroma_db")
+    Chroma.from_documents(chunks, embeddings, collection_name=get_collection_name(chat_id), persist_directory="./chroma_db")
 
     print("Database built and stored on disk.")
 
 if __name__ == "__main__":
-    build_vector_data()
+    pass
     
