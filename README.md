@@ -20,23 +20,23 @@ The application allows users to upload PDF documents, create multiple isolated c
 ## Architecture
 
 PDF Documents
-↓
+->
 PyMuPDF4LLM
-↓
+->
 Markdown Extraction
-↓
+->
 Markdown Header Splitter
-↓
+->
 Recursive Character Splitter
-↓
+->
 MiniLM Embeddings
-↓
+->
 ChromaDB Vector Store
-↓
+->
 Retriever
-↓
+->
 Llama 3.2 (Ollama)
-↓
+->
 Answer + Sources
 
 ---
