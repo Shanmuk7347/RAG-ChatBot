@@ -44,7 +44,7 @@ def build_vector_data(file_paths:list[str], chat_id:str):
 
     #Reduce the tokens so that model dosen't go beyond its context window
     print("Splitting markdown into chunks for token limiting...")
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=50)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1200, chunk_overlap=150)
     chunks = text_splitter.split_documents(md_splits)
 
     print("Creating embeddings...")

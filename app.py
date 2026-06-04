@@ -4,6 +4,9 @@ from ingest import build_vector_data
 import os
 import uuid
 import shutil
+from database import create_tables, save_chat, load_chats, delete_chat, save_message, load_messages, save_documents, load_documents
+import json
+
 
 # Setup app for RAG-Chatbot
 st.set_page_config(
@@ -11,6 +14,8 @@ st.set_page_config(
     page_icon="🤖",
     layout="centered"
 )
+
+create_tables()
 
 def new_chat(name="New Chat"):
     return {
@@ -21,15 +26,29 @@ def new_chat(name="New Chat"):
     }
 
 st.title("🔍 Ask Your PDFs")
-st.caption("Powered by Llama")
+st.caption("Powered by Llama, ChromaDB, and Streamlit")
 st.markdown("---")
 
-# setting up session state to store previous conversations so that they wont disapper due to rerunning
+# setting up session state and loading exixting data 
 if "chats" not in st.session_state:
-    st.session_state.chats = [new_chat("FirstChat")]
+    saved_chats = load_chats()
+    if saved_chats:
+        for c in saved_chats:
+            c["messages"] = load_messages(c["id"])
+            c["docs"] = load_documents(c["id"])
+        st.session_state.chats = saved_chats
+    else:    
+        first = new_chat("First Chat")
+        st.session_state.chats = [first]
+        save_chat(chat_id=first["id"],name=first["name"])
+
+if "chat_count" not in st.session_state:
+    st.session_state.chat_count = len(st.session_state.chats)
 
 if "active_chat_id" not in st.session_state:
     st.session_state.active_chat_id = st.session_state.chats[0]["id"]
+
+
 
 def active_chat():
     for c in st.session_state.chats:
@@ -43,8 +62,10 @@ with st.sidebar:
     st.subheader("Chats")
 
     if st.button("➕ New Chat"):
-        name = st.text_input("Chat Name")
-        st.session_state.chats.append(new_chat(name if name else f"Chat {len(st.session_state.chats)+1}"))
+        st.session_state.chat_count += 1
+        new = new_chat(f"Chat {st.session_state.chat_count}")
+        st.session_state.chats.append(new)
+        save_chat(chat_id=new["id"],name=new["name"])
         st.session_state.active_chat_id = st.session_state.chats[-1]["id"]
         st.rerun()
 
@@ -55,6 +76,7 @@ with st.sidebar:
             st.rerun()
     
     chat = active_chat()
+
     st.markdown("---")
 
     st.subheader("📂Ingested Documents")
@@ -84,12 +106,16 @@ with st.sidebar:
                 with open(file_path, "wb") as f:
                     f.write(file.getbuffer())
                 chat["docs"].append(file.name)
+                save_documents(chat["id"], file.name)
                 new_file_paths.append(file_path) 
 
             if new_file_paths:
                 with st.spinner("Ingesting files..."):
-                    build_vector_data(file_paths=new_file_paths, chat_id=chat["id"])
-                    get_vectorstore.clear()
+                    try:
+                        build_vector_data(file_paths=new_file_paths, chat_id=chat["id"])
+                        get_vectorstore.clear()
+                    except Exception as e:
+                        st.error(f"Error during ingestion: {e}")
                 st.success("Ingestion complete!")
                 st.rerun()
             else:
@@ -98,14 +124,17 @@ with st.sidebar:
     st.markdown("---")
 
     if st.button("🚮Delete This chat"):
-        if os.path.exists(f"./Docs/{chat["id"]}"):
-            shutil.rmtree(f"./Docs/{chat["id"]}")
-        delete_chat_collection(chat["id"])
-        get_vectorstore.clear()
-        st.session_state.chats.remove(chat)
+        with st.spinner("Deleting chat and associated data..."):
+            if os.path.exists(f"./Docs/{chat["id"]}"):
+                shutil.rmtree(f"./Docs/{chat["id"]}")
+            delete_chat_collection(chat["id"])
+            delete_chat(chat["id"])
+            get_vectorstore.clear()
+            st.session_state.chats.remove(chat)
         if not st.session_state.chats:
             new = new_chat("New Chat")
             st.session_state.chats.append(new)
+            save_chat(chat_id=new["id"],name=new["name"])
         st.session_state.active_chat_id = st.session_state.chats[0]["id"]
         st.rerun()
         
@@ -113,7 +142,7 @@ for message in chat["messages"]:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
     
-        if message["role"] == "assistant" and "sources" in message:
+        if (message["role"] == "assistant" and message.get("sources")):
             with st.expander("Sources"):
                 for source in message["sources"]:
                     st.caption(source["file"])
@@ -125,6 +154,7 @@ if prompt := st.chat_input("Ask anything"):
         st.markdown(prompt)
     # Storing user query in session state to display even after rerunning
     chat["messages"].append({"role": "user", "content": prompt})
+    save_message(chat["id"], "user", prompt, None)
 
 # Invoke retriever and chain to get the source and answers
     with st.spinner("Searching through the docs..."):
@@ -139,4 +169,6 @@ if prompt := st.chat_input("Ask anything"):
                 st.caption(doc.metadata["source"])
                 st.markdown(doc.page_content[:200])
     # Storing assistant answer and sources in session state to display even after rerunning
-    chat["messages"].append({"role": "assistant", "content": answer, "sources": [{"file": doc.metadata["source"], "preview": doc.page_content[:200]} for doc in sources]})
+    SOURCES = [{"file": doc.metadata["source"], "preview": doc.page_content[:200]} for doc in sources]
+    chat["messages"].append({"role": "assistant", "content": answer, "sources": SOURCES})
+    save_message(chat["id"], "assistant", answer, json.dumps(SOURCES))

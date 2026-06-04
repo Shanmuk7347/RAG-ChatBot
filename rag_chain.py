@@ -9,12 +9,12 @@ import streamlit as st
 
 
 # Initialize embeddings same as in ingest.py
-@st.cache_resource
+@st.cache_resource(show_spinner=False)
 def get_embeddings():
     return HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
 # Load from local vector DB
-@st.cache_resource
+@st.cache_resource(show_spinner=False)
 def get_vectorstore(chat_id:str):
 
     return Chroma(
@@ -23,12 +23,16 @@ def get_vectorstore(chat_id:str):
         collection_name=get_collection_name(chat_id)
     )
 
-@st.cache_resource
+@st.cache_resource(show_spinner=False)
 def get_llm():
     return ChatOllama(model="llama3.2")
 
 Prompt = ChatPromptTemplate.from_messages([
-        ("system", "Use only the context below to answer. If the answer is not in the context, say you don't know.\n\nContext: {context}"),
+        ("system", """Use only the provided context to answer.
+        If the answer is not contained in the context,
+        say:
+        "I could not find that information in the uploaded documents."
+        Be concise and accurate.{context}"""),
         ("human", "{question}")
     ])
 
