@@ -42,6 +42,30 @@ def get_llm(provider="Ollama", model= "llama3.2"):
         return ChatOpenAI(model=model, temperature=0.3, api_key=OpenAI_API_KEY, streaming=True)
 
 
+rewrite_prompt = ChatPromptTemplate.from_messages([
+    ("system",
+        """
+        Rewrite the user's latest question into a standalone question.
+        Use the conversation history only to resolve references like:
+        - it
+        - they
+        - this
+        - that
+        Return ONLY the rewritten question.
+        """),
+    ("human",
+        """
+        Conversation History:
+        {history}
+        Latest Question:
+        {question}
+""")
+])
+
+def rewriter(provider, model):
+    llm = get_llm(provider, model)
+    return (rewrite_prompt | llm | StrOutputParser())
+
 Prompt = ChatPromptTemplate.from_messages([
         ("system", """Use only the provided context to answer.
         If the answer is not contained in the context,
@@ -76,6 +100,8 @@ def delete_chat_collection(chat_id:str):
     get_vectorstore.clear()
 
 
+
+
 if __name__ == "__main__":
     print("Chatbot started. Type 'exit' to quit.")
     
@@ -85,6 +111,6 @@ if __name__ == "__main__":
             break
             
         print("Thinking...")
-        answer = get_chain(chat_id="default").invoke(question)
+        answer = get_chain(chat_id="default", provider="Ollama", model="llama3.2").invoke(question)
         print("\n ======== Answer ======== ")
         print(answer)

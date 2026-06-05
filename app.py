@@ -1,5 +1,5 @@
 import streamlit as st
-from rag_chain import get_chain, get_retriever, delete_chat_collection, get_vectorstore
+from rag_chain import get_chain, get_retriever, delete_chat_collection, get_vectorstore, rewriter
 from ingest import build_vector_data
 import os
 import uuid
@@ -71,7 +71,7 @@ with st.sidebar:
     elif provider == "Google":
         model = st.selectbox("Model", ["gemini-2.5-flash", "gemini-2.5-pro"])
     elif provider == "OpenAI":
-        model = st.selectbox("Model", ["gpt-4o-mini", "gpy-4o"])
+        model = st.selectbox("Model", ["gpt-4o-mini", "gpt-4o"])
     st.session_state.model = model
 
     st.subheader("Chats")
@@ -171,12 +171,18 @@ if prompt := st.chat_input("Ask anything"):
     chat["messages"].append({"role": "user", "content": prompt})
     save_message(chat["id"], "user", prompt, None)
 
+    history = ""
+    for msg in chat["messages"][-7:-1]:
+        history += f"{msg['role']}: {msg['content']}\n"
+
 # Invoke retriever and chain to get the source and answers
     with st.spinner("Searching through the docs..."):
-        sources = get_retriever(chat["id"]).invoke(prompt)
-        
+        Rewriter = rewriter(provider=provider, model=model)
+        rewritten_prompt = Rewriter.invoke({"history": history, "question": prompt})
 
-# Displaying the answer and sources
+        sources = get_retriever(chat_id=chat["id"]).invoke(rewritten_prompt)
+        
+# Displaying the answer with streaming and sources
     response = ""
     try:
         chain = get_chain(chat["id"], provider=provider, model=model)
@@ -184,7 +190,7 @@ if prompt := st.chat_input("Ask anything"):
         st.warning(f"Error! {e}")
     with st.chat_message("assistant"):
         placeholder = st.empty()
-        for chunk in chain.stream(prompt):
+        for chunk in chain.stream(rewritten_prompt):
             response += chunk
             placeholder.markdown(response + "|")
         placeholder.markdown(response)

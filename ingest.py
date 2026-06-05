@@ -12,7 +12,6 @@ class PyMuPDFMarkdownLoader(BaseLoader):
     def load(self):
         md_text = to_markdown(self.file_path, page_chunks=True)
         docs = []
-        print(md_text[0])
         for page in md_text:
 
             docs.append(
@@ -60,8 +59,7 @@ def build_vector_data(file_paths:list[str], chat_id:str):
     print("Splitting markdown into chunks for token limiting...")
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1200, chunk_overlap=150)
     chunks = text_splitter.split_documents(md_splits)
-    for chunk in chunks[:5]:
-        print(chunk.metadata)
+    
     print("Creating embeddings...")
     #Using all-MiniLM-L6-v2 for embedding generation, it converts text in a 384-dimensional vector.
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
@@ -72,5 +70,5 @@ def build_vector_data(file_paths:list[str], chat_id:str):
     print("Database built and stored on disk.")
 
 if __name__ == "__main__":
-    build_vector_data([".\\Docs\\Neural Networks (1).pdf"], "test")
+    pass
     

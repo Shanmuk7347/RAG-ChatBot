@@ -173,6 +173,7 @@ streamlit run app.py
 * Chat-specific vector databases
 * Local inference without external APIs
 * Source-grounded responses
+* Conversation memory
 
 ---
 
@@ -181,18 +182,8 @@ streamlit run app.py
 * Hybrid search (BM25 + Vector Search)
 * Reranking pipeline
 * Chat renaming
-* Conversation memory
 * Docker deployment
 * FastAPI backend
 * Authentication and user accounts
-
----
-
-## Example Queries
-
-* Explain the EM Algorithm from the uploaded notes.
-* Summarize the key concepts in this chapter.
-* What are the assumptions of K-Means clustering?
-* Compare the methods discussed in the document.
 
 ---
