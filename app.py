@@ -159,16 +159,22 @@ if prompt := st.chat_input("Ask anything"):
 # Invoke retriever and chain to get the source and answers
     with st.spinner("Searching through the docs..."):
         sources = get_retriever(chat["id"]).invoke(prompt)
-        answer = get_chain(chat["id"]).invoke(prompt)
+        
 
 # Displaying the answer and sources
+    response = ""
+    chain = get_chain(chat["id"])
     with st.chat_message("assistant"):
-        st.markdown(answer)
+        placeholder = st.empty()
+        for chunk in chain.stream(prompt):
+            response += chunk
+            placeholder.markdown(response + "|")
+        placeholder.markdown(response)
         with st.expander("Sources"):
             for doc in sources:
                 st.caption(doc.metadata["source"])
                 st.markdown(doc.page_content[:200])
     # Storing assistant answer and sources in session state to display even after rerunning
     SOURCES = [{"file": doc.metadata["source"], "preview": doc.page_content[:200]} for doc in sources]
-    chat["messages"].append({"role": "assistant", "content": answer, "sources": SOURCES})
-    save_message(chat["id"], "assistant", answer, json.dumps(SOURCES))
+    chat["messages"].append({"role": "assistant", "content": response, "sources": SOURCES})
+    save_message(chat["id"], "assistant", response, json.dumps(SOURCES))

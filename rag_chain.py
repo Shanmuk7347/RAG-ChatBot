@@ -24,8 +24,8 @@ def get_vectorstore(chat_id:str):
     )
 
 @st.cache_resource(show_spinner=False)
-def get_llm():
-    return ChatOllama(model="llama3.2")
+def get_llm(model= "llama3.2"):
+    return ChatOllama(model=model, temperature=0.3)
 
 Prompt = ChatPromptTemplate.from_messages([
         ("system", """Use only the provided context to answer.
@@ -37,9 +37,8 @@ Prompt = ChatPromptTemplate.from_messages([
     ])
 
 def get_retriever(chat_id:str):
-# Create the retriever and get the top 4 relevant chunks using cosine similarity for a given query
-    return get_vectorstore(chat_id).as_retriever(search_kwargs={"k": 4})
-
+# Create the retriever and get the top 4 relevant chunks using mmr retrival
+    return get_vectorstore(chat_id).as_retriever(search_type="mmr", search_kwargs={"k": 4, "fetch_k": 20})
 def get_chain(chat_id:str):
     retriever = get_retriever(chat_id)
     # Initialize the llm 
