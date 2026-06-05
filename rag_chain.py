@@ -4,9 +4,18 @@ from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 from ingest import get_collection_name
 import streamlit as st
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
+
+
+Gemini_API_KEY = os.getenv("GEMINI_API_KEY")
+OpenAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # Initialize embeddings same as in ingest.py
 @st.cache_resource(show_spinner=False)
@@ -24,8 +33,14 @@ def get_vectorstore(chat_id:str):
     )
 
 @st.cache_resource(show_spinner=False)
-def get_llm(model= "llama3.2"):
-    return ChatOllama(model=model, temperature=0.3)
+def get_llm(provider="Ollama", model= "llama3.2"):
+    if provider == "Ollama":
+        return ChatOllama(model=model, temperature=0.3)
+    elif provider == "Google":
+        return ChatGoogleGenerativeAI(model=model, api_key=Gemini_API_KEY, streaming=True)
+    elif provider == "OpenAI":
+        return ChatOpenAI(model=model, temperature=0.3, api_key=OpenAI_API_KEY, streaming=True)
+
 
 Prompt = ChatPromptTemplate.from_messages([
         ("system", """Use only the provided context to answer.
@@ -39,10 +54,12 @@ Prompt = ChatPromptTemplate.from_messages([
 def get_retriever(chat_id:str):
 # Create the retriever and get the top 4 relevant chunks using mmr retrival
     return get_vectorstore(chat_id).as_retriever(search_type="mmr", search_kwargs={"k": 4, "fetch_k": 20})
-def get_chain(chat_id:str):
+
+def get_chain(chat_id:str, provider, model):
     retriever = get_retriever(chat_id)
+
     # Initialize the llm 
-    llm = get_llm()
+    llm = get_llm(provider=provider, model=model)
 
     # Defining strict prompt architecture
     prompt = Prompt

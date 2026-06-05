@@ -91,7 +91,10 @@ RAG_ChatBot/
 
 ├── Docs/
 
-└── database.db
+├──database.db
+
+└── .env
+
 
 ---
 
@@ -130,10 +133,17 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Pull Llama 3.2
+### Pull Llama 3.2/ qwen3/ gemma3
 
 ```bash
 ollama pull llama3.2
+```
+
+### Save your API keys If you want to use Cloud models
+
+```bash
+GEMINI_API_KEY = "Your API KEY"
+OPENAI_API_KEY = "Your API KEY"
 ```
 
 ### Run Application
@@ -152,6 +162,7 @@ streamlit run app.py
 4. Ask questions about the uploaded documents.
 5. View retrieved source chunks for every answer.
 6. Create additional chats for isolated document collections.
+7. Change provider and model for cloud models
 
 ---
 
@@ -167,7 +178,6 @@ streamlit run app.py
 
 ## Future Improvements
 
-* Streaming responses
 * Hybrid search (BM25 + Vector Search)
 * Reranking pipeline
 * Chat renaming

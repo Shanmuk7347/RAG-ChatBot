@@ -1,6 +1,7 @@
 .venv/
 .env
 chroma_db/
+Docs/
 __pycache__/
 database.db
 *.db

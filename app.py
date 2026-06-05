@@ -48,6 +48,11 @@ if "chat_count" not in st.session_state:
 if "active_chat_id" not in st.session_state:
     st.session_state.active_chat_id = st.session_state.chats[0]["id"]
 
+if "provider" not in st.session_state:
+    st.session_state.provider = "Ollama"
+if "model" not in st.session_state:
+    st.session_state.model = "llama3.2"
+
 
 
 def active_chat():
@@ -59,6 +64,16 @@ def active_chat():
 # Side bar for PDF uploading and List of uploaded PDFs
 with st.sidebar:
     st.header("RAG-Chatbot")
+    provider = st.selectbox("Provider", ["Ollama", "Google", "OpenAI"])
+    st.session_state.provider = provider
+    if provider == "Ollama":
+        model = st.selectbox("Model", ["llama3.2", "qwen3", "gemma3"])
+    elif provider == "Google":
+        model = st.selectbox("Model", ["gemini-2.5-flash", "gemini-2.5-pro"])
+    elif provider == "OpenAI":
+        model = st.selectbox("Model", ["gpt-4o-mini", "gpy-4o"])
+    st.session_state.model = model
+
     st.subheader("Chats")
 
     if st.button("➕ New Chat"):
@@ -163,7 +178,10 @@ if prompt := st.chat_input("Ask anything"):
 
 # Displaying the answer and sources
     response = ""
-    chain = get_chain(chat["id"])
+    try:
+        chain = get_chain(chat["id"], provider=provider, model=model)
+    except Exception as e:
+        st.warning(f"Error! {e}")
     with st.chat_message("assistant"):
         placeholder = st.empty()
         for chunk in chain.stream(prompt):
@@ -172,7 +190,7 @@ if prompt := st.chat_input("Ask anything"):
         placeholder.markdown(response)
         with st.expander("Sources"):
             for doc in sources:
-                st.caption(doc.metadata["source"])
+                st.caption(f"📝 {doc.metadata["source"]} | page {doc.metadata["page"]}")
                 st.markdown(doc.page_content[:200])
     # Storing assistant answer and sources in session state to display even after rerunning
     SOURCES = [{"file": doc.metadata["source"], "preview": doc.page_content[:200]} for doc in sources]
