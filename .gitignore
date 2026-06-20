@@ -2,6 +2,7 @@
 .env
 chroma_db/
 Docs/
+logs/
 __pycache__/
 database.db
 *.db

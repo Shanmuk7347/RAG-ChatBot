@@ -4,6 +4,9 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter, MarkdownHea
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
+from config import settings
+from logger import logger
+import time
 
 class PyMuPDFMarkdownLoader(BaseLoader):
     def __init__(self, file_path:str):
@@ -32,8 +35,8 @@ def get_collection_name(chat_id:str):
 def build_vector_data(file_paths:list[str], chat_id:str):
 
     """ Loading Documents and storing them as vectors in ChromaDB """
-
-    print("Loading documents...")
+    start = time.perf_counter()
+    logger.info("Loading documents...")
     #Converting the text into markdown for structural Splitting
     documents = []
     for path in file_paths:
@@ -41,10 +44,10 @@ def build_vector_data(file_paths:list[str], chat_id:str):
         documents.extend(loader.load())
 
     if not documents:
-        print("Error: No PDFs found in the Docs directory. Halting ingestion.")
+        logger.error("Error: No PDFs found in the Docs directory. Halting ingestion.")
         return
 
-    print("Starting Markdown splitting...")
+    logger.info("Starting Markdown splitting...")
     md_splitter = MarkdownHeaderTextSplitter(headers_to_split_on=[("#", "Header 1"), ("##", "Header 2"), ("###", "Header 3")])
     #Spliting using markdown splitter and linking them to their sources 
     md_splits = []
@@ -56,18 +59,20 @@ def build_vector_data(file_paths:list[str], chat_id:str):
         md_splits.extend(splits)
 
     #Reduce the tokens so that model dosen't go beyond its context window
-    print("Splitting markdown into chunks for token limiting...")
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1200, chunk_overlap=150)
+    logger.info("Splitting markdown into chunks for token limiting...")
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=settings.chunk_size, chunk_overlap=settings.chunk_overlap)
     chunks = text_splitter.split_documents(md_splits)
     
-    print("Creating embeddings...")
+    logger.info("Creating embeddings...")
     #Using all-MiniLM-L6-v2 for embedding generation, it converts text in a 384-dimensional vector.
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    embeddings = HuggingFaceEmbeddings(model_name=settings.embedding_model)
 
-    print("Generating Vectors and storing them on disk...")
-    Chroma.from_documents(chunks, embeddings, collection_name=get_collection_name(chat_id), persist_directory="./chroma_db")
-
-    print("Database built and stored on disk.")
+    logger.info("Generating Vectors and storing them on disk...")
+    Chroma.from_documents(chunks, embeddings, collection_name=get_collection_name(chat_id), persist_directory=settings.chroma_dir)
+    stop = time.perf_counter()
+    logger.success("Database built and stored on disk.")
+    logger.info(f"Loaded {len(file_paths)} documents")
+    logger.info(f"Ingestion completed in {(stop - start):.2f}s ")
 
 if __name__ == "__main__":
     pass

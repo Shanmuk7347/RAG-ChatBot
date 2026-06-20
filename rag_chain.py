@@ -8,32 +8,32 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 from ingest import get_collection_name
 import streamlit as st
-import os
-from dotenv import load_dotenv
+from config import settings
+from logger import logger
+import time
 
-load_dotenv()
 
-
-Gemini_API_KEY = os.getenv("GEMINI_API_KEY")
-OpenAI_API_KEY = os.getenv("OPENAI_API_KEY")
+Gemini_API_KEY = settings.gemini_api_key
+OpenAI_API_KEY = settings.openai_api_key
 
 # Initialize embeddings same as in ingest.py
 @st.cache_resource(show_spinner=False)
 def get_embeddings():
-    return HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    return HuggingFaceEmbeddings(model_name=settings.embedding_model)
 
 # Load from local vector DB
 @st.cache_resource(show_spinner=False)
 def get_vectorstore(chat_id:str):
 
     return Chroma(
-        persist_directory="./chroma_db",
+        persist_directory=settings.chroma_dir,
         embedding_function=get_embeddings(),
         collection_name=get_collection_name(chat_id)
     )
 
 @st.cache_resource(show_spinner=False)
-def get_llm(provider="Ollama", model= "llama3.2"):
+def get_llm(provider=settings.default_provider, model= settings.default_model):
+    logger.info(f"Initializing LLM, provider: {provider}, model: {model}")
     if provider == "Ollama":
         return ChatOllama(model=model, temperature=0.3)
     elif provider == "Google":
@@ -63,6 +63,7 @@ rewrite_prompt = ChatPromptTemplate.from_messages([
 ])
 
 def rewriter(provider, model):
+    logger.info(f"rewriting prompt")
     llm = get_llm(provider, model)
     return (rewrite_prompt | llm | StrOutputParser())
 
@@ -77,7 +78,7 @@ Prompt = ChatPromptTemplate.from_messages([
 
 def get_retriever(chat_id:str):
 # Create the retriever and get the top 4 relevant chunks using mmr retrival
-    return get_vectorstore(chat_id).as_retriever(search_type="mmr", search_kwargs={"k": 4, "fetch_k": 20})
+    return get_vectorstore(chat_id).as_retriever(search_type="mmr", search_kwargs={"k": settings.top_k, "fetch_k": settings.fetch_k})
 
 def get_chain(chat_id:str, provider, model):
     retriever = get_retriever(chat_id)
@@ -88,6 +89,8 @@ def get_chain(chat_id:str, provider, model):
     # Defining strict prompt architecture
     prompt = Prompt
 
+    logger.info(f"Initilaizing chain for chat: {chat_id}")
+
     # Construncting the Pipeline
     return (
         {"context": retriever, "question": RunnablePassthrough()}
@@ -95,11 +98,10 @@ def get_chain(chat_id:str, provider, model):
     )
 
 def delete_chat_collection(chat_id:str):
+    logger.info("Deleting chat: {chat_id}")
     vs = get_vectorstore(chat_id)
     vs.delete_collection()
     get_vectorstore.clear()
-
-
 
 
 if __name__ == "__main__":

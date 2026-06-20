@@ -6,7 +6,8 @@ import uuid
 import shutil
 from database import create_tables, save_chat, load_chats, delete_chat, save_message, load_messages, save_documents, load_documents
 import json
-
+from logger import logger
+import time
 
 # Setup app for RAG-Chatbot
 st.set_page_config(
@@ -170,7 +171,7 @@ if prompt := st.chat_input("Ask anything"):
     # Storing user query in session state to display even after rerunning
     chat["messages"].append({"role": "user", "content": prompt})
     save_message(chat["id"], "user", prompt, None)
-
+    logger.info(f"chat: {chat['id']}, query: {prompt}")
     history = ""
     for msg in chat["messages"][-7:-1]:
         history += f"{msg['role']}: {msg['content']}\n"
@@ -179,8 +180,12 @@ if prompt := st.chat_input("Ask anything"):
     with st.spinner("Searching through the docs..."):
         Rewriter = rewriter(provider=provider, model=model)
         rewritten_prompt = Rewriter.invoke({"history": history, "question": prompt})
-
+        logger.info(f"Rewritten prompt: {rewritten_prompt}")
+        start = time.perf_counter()
         sources = get_retriever(chat_id=chat["id"]).invoke(rewritten_prompt)
+        end = time.perf_counter()
+        elapsed = end - start
+        logger.info(f"retrived in {elapsed:.2f}s")
         
 # Displaying the answer with streaming and sources
     response = ""
@@ -188,11 +193,16 @@ if prompt := st.chat_input("Ask anything"):
         chain = get_chain(chat["id"], provider=provider, model=model)
     except Exception as e:
         st.warning(f"Error! {e}")
+        logger.error(f"Error! {e}")
     with st.chat_message("assistant"):
         placeholder = st.empty()
+        start = time.perf_counter()
         for chunk in chain.stream(rewritten_prompt):
             response += chunk
             placeholder.markdown(response + "|")
+        end = time.perf_counter()
+        elapsed = end - start
+        logger.info(f"Generated response in {elapsed:.2f}s using {provider}:{model}")
         placeholder.markdown(response)
         with st.expander("Sources"):
             for doc in sources:
