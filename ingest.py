@@ -7,6 +7,7 @@ from langchain_core.documents import Document
 from config import settings
 from logger import logger
 import time
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 class PyMuPDFMarkdownLoader(BaseLoader):
     def __init__(self, file_path:str):
@@ -31,6 +32,16 @@ class PyMuPDFMarkdownLoader(BaseLoader):
 
 def get_collection_name(chat_id:str):
     return f"chat_{chat_id}"
+
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=2, max=10),
+    before_sleep=lambda k: logger.warning(f"Retrying for {k.fn.__name__} ({k.attempt_number}/3) because {type(k.outcome.exception()).__name__}"), reraise=True)
+def get_embeddings():
+    return HuggingFaceEmbeddings(model_name=settings.embedding_model)
+
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=2, max=10),
+    before_sleep=lambda k: logger.warning(f"Retrying for {k.fn.__name__} ({k.attempt_number}/3) because {type(k.outcome.exception()).__name__}"), reraise=True)
+def save_to_chroma(chunks, embeddings, chat_id):
+    Chroma.from_documents(chunks, embeddings, collection_name=get_collection_name(chat_id), persist_directory=settings.chroma_dir)
 
 def build_vector_data(file_paths:list[str], chat_id:str):
 
@@ -65,10 +76,10 @@ def build_vector_data(file_paths:list[str], chat_id:str):
     
     logger.info("Creating embeddings...")
     #Using all-MiniLM-L6-v2 for embedding generation, it converts text in a 384-dimensional vector.
-    embeddings = HuggingFaceEmbeddings(model_name=settings.embedding_model)
+    embeddings = get_embeddings()
 
     logger.info("Generating Vectors and storing them on disk...")
-    Chroma.from_documents(chunks, embeddings, collection_name=get_collection_name(chat_id), persist_directory=settings.chroma_dir)
+    save_to_chroma(chunks, embeddings, chat_id)
     stop = time.perf_counter()
     logger.success("Database built and stored on disk.")
     logger.info(f"Loaded {len(file_paths)} documents")

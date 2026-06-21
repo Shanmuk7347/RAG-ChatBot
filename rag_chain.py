@@ -10,7 +10,7 @@ from ingest import get_collection_name
 import streamlit as st
 from config import settings
 from logger import logger
-import time
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 
 Gemini_API_KEY = settings.gemini_api_key
@@ -18,6 +18,8 @@ OpenAI_API_KEY = settings.openai_api_key
 
 # Initialize embeddings same as in ingest.py
 @st.cache_resource(show_spinner=False)
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=2, max=10),
+    before_sleep=lambda k: logger.warning(f"Retrying for {k.fn.__name__} ({k.attempt_number}/3) because {type(k.outcome.exception()).__name__}"), reraise=True)
 def get_embeddings():
     return HuggingFaceEmbeddings(model_name=settings.embedding_model)
 
@@ -98,7 +100,7 @@ def get_chain(chat_id:str, provider, model):
     )
 
 def delete_chat_collection(chat_id:str):
-    logger.info("Deleting chat: {chat_id}")
+    logger.info(f"Deleting chat: {chat_id}")
     vs = get_vectorstore(chat_id)
     vs.delete_collection()
     get_vectorstore.clear()

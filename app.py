@@ -8,6 +8,7 @@ from database import create_tables, save_chat, load_chats, delete_chat, save_mes
 import json
 from logger import logger
 import time
+from retry import safe_invoke, safe_stream
 
 # Setup app for RAG-Chatbot
 st.set_page_config(
@@ -179,10 +180,11 @@ if prompt := st.chat_input("Ask anything"):
 # Invoke retriever and chain to get the source and answers
     with st.spinner("Searching through the docs..."):
         Rewriter = rewriter(provider=provider, model=model)
-        rewritten_prompt = Rewriter.invoke({"history": history, "question": prompt})
+        rewritten_prompt = safe_invoke(Rewriter, {"history": history, "question": prompt})
         logger.info(f"Rewritten prompt: {rewritten_prompt}")
         start = time.perf_counter()
-        sources = get_retriever(chat_id=chat["id"]).invoke(rewritten_prompt)
+        Retriever = get_retriever(chat_id=chat["id"])
+        sources = safe_invoke(Retriever, rewritten_prompt)
         end = time.perf_counter()
         elapsed = end - start
         logger.info(f"retrived in {elapsed:.2f}s")
@@ -197,7 +199,7 @@ if prompt := st.chat_input("Ask anything"):
     with st.chat_message("assistant"):
         placeholder = st.empty()
         start = time.perf_counter()
-        for chunk in chain.stream(rewritten_prompt):
+        for chunk in safe_stream(chain, rewritten_prompt):
             response += chunk
             placeholder.markdown(response + "|")
         end = time.perf_counter()

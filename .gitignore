@@ -4,5 +4,7 @@ chroma_db/
 Docs/
 logs/
 __pycache__/
+eval.py
+eval_results.jsonl
 database.db
 *.db
