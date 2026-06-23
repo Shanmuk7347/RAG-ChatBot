@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     chroma_dir: str = "./chroma_db"
     docs_dir: str = "./Docs"
     log_dir: str = "./logs"
+    chunks_dir: str = "./Data"
 
     #Embeddings model
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"

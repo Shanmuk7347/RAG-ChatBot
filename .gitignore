@@ -6,5 +6,6 @@ logs/
 __pycache__/
 eval.py
 eval_results.jsonl
+Data/
 database.db
 *.db

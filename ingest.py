@@ -8,6 +8,8 @@ from config import settings
 from logger import logger
 import time
 from tenacity import retry, stop_after_attempt, wait_exponential
+import os
+import json
 
 class PyMuPDFMarkdownLoader(BaseLoader):
     def __init__(self, file_path:str):
@@ -40,8 +42,37 @@ def get_embeddings():
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=2, max=10),
     before_sleep=lambda k: logger.warning(f"Retrying for {k.fn.__name__} ({k.attempt_number}/3) because {type(k.outcome.exception()).__name__}"), reraise=True)
-def save_to_chroma(chunks, embeddings, chat_id):
+def save_to_chroma(chunks: list[Document], embeddings: HuggingFaceEmbeddings, chat_id: str):
     Chroma.from_documents(chunks, embeddings, collection_name=get_collection_name(chat_id), persist_directory=settings.chroma_dir)
+
+def save_chunks(chunks: list[Document], chat_id:str):
+    save_dir = settings.chunks_dir
+    os.makedirs(save_dir, exist_ok=True)
+    file_path = os.path.join(save_dir, f"{chat_id}.json")
+    chunk_data = [
+        {
+            "page_content": chunk.page_content,
+            "metadata": chunk.metadata
+        } for chunk in chunks]
+    if os.path.exists(file_path):
+        with open(file_path, "r", encoding="utf-8") as f:
+            existing_chunks = json.load(f)
+
+    else:
+        existing_chunks = []
+
+    chunk_data.extend(existing_chunks)
+
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(
+            chunk_data,
+            f,
+            ensure_ascii=False,
+            indent=2
+        )
+    
+    logger.info(f"Saved chunks to {settings.chroma_dir}/{chat_id}.json")
+        
 
 def build_vector_data(file_paths:list[str], chat_id:str):
 
@@ -73,7 +104,8 @@ def build_vector_data(file_paths:list[str], chat_id:str):
     logger.info("Splitting markdown into chunks for token limiting...")
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=settings.chunk_size, chunk_overlap=settings.chunk_overlap)
     chunks = text_splitter.split_documents(md_splits)
-    
+    save_chunks(chunks, chat_id)
+
     logger.info("Creating embeddings...")
     #Using all-MiniLM-L6-v2 for embedding generation, it converts text in a 384-dimensional vector.
     embeddings = get_embeddings()
@@ -86,5 +118,5 @@ def build_vector_data(file_paths:list[str], chat_id:str):
     logger.info(f"Ingestion completed in {(stop - start):.2f}s ")
 
 if __name__ == "__main__":
-    pass
+    build_vector_data([r"C:\RAG_ChatBot\Docs\9653e357-8290-4c9b-9a61-6d8b805754d6.pdf"], "test")
     
