@@ -1,4 +1,4 @@
-from retrievers.bm25 import load_chunks, get_bm25_retriever
+from retrievers.bm25 import get_bm25_retriever
 
 bm25 = get_bm25_retriever("test", 2)
 

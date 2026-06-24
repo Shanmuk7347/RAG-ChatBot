@@ -5,7 +5,9 @@ Docs/
 logs/
 __pycache__/
 eval.py
-eval_results.jsonl
+eval_results*
+test_questions*
+test.py
 Data/
 database.db
 *.db

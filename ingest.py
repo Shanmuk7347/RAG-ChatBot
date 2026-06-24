@@ -118,5 +118,5 @@ def build_vector_data(file_paths:list[str], chat_id:str):
     logger.info(f"Ingestion completed in {(stop - start):.2f}s ")
 
 if __name__ == "__main__":
-    build_vector_data([r"C:\RAG_ChatBot\Docs\9653e357-8290-4c9b-9a61-6d8b805754d6.pdf"], "test")
+    build_vector_data([r"Docs\Attention is all you need.pdf", r"Docs\Benchmarking.pdf", r"Docs\EnlightenGAN_Deep_Light_Enhancement_Without_Paired_Supervision_compressed.pdf"], "test")
     

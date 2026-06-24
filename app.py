@@ -1,5 +1,5 @@
 import streamlit as st
-from rag_chain import get_chain, get_retriever, delete_chat_collection, get_vectorstore, rewriter
+from rag_chain import get_chain, get_vector_retriever, delete_chat_collection, get_vectorstore, rewriter
 from ingest import build_vector_data
 import os
 import uuid
@@ -183,7 +183,7 @@ if prompt := st.chat_input("Ask anything"):
         rewritten_prompt = safe_invoke(Rewriter, {"history": history, "question": prompt})
         logger.info(f"Rewritten prompt: {rewritten_prompt}")
         start = time.perf_counter()
-        Retriever = get_retriever(chat_id=chat["id"])
+        Retriever = get_vector_retriever(chat_id=chat["id"])
         sources = safe_invoke(Retriever, rewritten_prompt)
         end = time.perf_counter()
         elapsed = end - start

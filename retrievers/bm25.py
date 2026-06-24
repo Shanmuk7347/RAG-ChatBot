@@ -46,3 +46,13 @@ def get_bm25_retriever(chat_id: str, k: int = 4):
     retriever = BM25Retriever.from_documents(docs, preprocess_func=preprocessing)
     retriever.k = k
     return retriever
+
+if __name__ == "__main__": 
+    bm25 = get_bm25_retriever("test", 3)
+    # "test" is test chat id
+    # query is "What is Schedule from day 10 - 20?"
+    print("After preprocessing query:", preprocessing("What is Schedule from day 10 - 20?"))
+    answers = bm25.invoke("What is Schedule from day 10 - 20?")
+    print(f"======Retrieved======")
+    for doc in answers:
+        print(f"Metadata: {doc.metadata}\n page_content: {doc.page_content}")

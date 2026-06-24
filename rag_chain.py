@@ -78,12 +78,12 @@ Prompt = ChatPromptTemplate.from_messages([
         ("human", "{question}")
     ])
 
-def get_retriever(chat_id:str):
+def get_vector_retriever(chat_id:str):
 # Create the retriever and get the top 4 relevant chunks using mmr retrival
     return get_vectorstore(chat_id).as_retriever(search_type="mmr", search_kwargs={"k": settings.top_k, "fetch_k": settings.fetch_k})
 
 def get_chain(chat_id:str, provider, model):
-    retriever = get_retriever(chat_id)
+    retriever = get_vector_retriever(chat_id)
 
     # Initialize the llm 
     llm = get_llm(provider=provider, model=model)
