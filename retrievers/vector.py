@@ -20,5 +20,17 @@ def get_vectorstore(chat_id: str):
         collection_name=get_collection_name(chat_id)
         )
 
-def get_vector_retriever(chat_id: str):
-    return get_vectorstore(chat_id).as_retriever(search_type= "mmr", search_kwargs= {"k": settings.top_k, "fetch_k": settings.fetch_k})
+def get_vector_retriever(chat_id: str, k: int = settings.top_k, metadata_filters: dict | None = None):
+    search_kwargs = {"k": k, "fetch_k": settings.fetch_k}
+    if metadata_filters:
+        search_kwargs["filter"] = metadata_filters
+    return get_vectorstore(chat_id).as_retriever(search_type= "mmr", search_kwargs= search_kwargs)
+
+if __name__ == "__main__":
+    retriever = get_vector_retriever(
+    "test",k=4,metadata_filters={"page": 4})
+    docs = retriever.invoke("Scaled Dot Product Attention")
+    for doc in docs:
+        print(f"page: {doc.metadata["page"]}")
+        print(f"content: {doc.page_content[:80]}")
+        print("--"*50)

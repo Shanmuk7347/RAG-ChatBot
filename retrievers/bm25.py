@@ -38,21 +38,44 @@ def preprocessing(text: str):
             words.append(word)
     return words
 
-def get_bm25_retriever(chat_id: str, k: int = 4):
+def filter_docs(docs: list[Document], metadata_filters: dict | None):
+    """
+    Filter the documents based on the metadata filters
+    """
+    if metadata_filters is None:
+        return docs
+
+    filtered_docs = []
+    for doc in docs:
+        keys = metadata_filters.keys()
+        match = True
+        for key in keys:
+            if doc.metadata.get(key) != metadata_filters.get(key):
+                match = False
+                break
+        if match:
+            filtered_docs.append(doc)
+
+    return filtered_docs
+
+
+def get_bm25_retriever(chat_id: str, k: int = settings.top_k, metadata_filters: dict | None = None):
     """ 
     Create a BM25 Retriever for a specific chat
     """
     docs = load_chunks(chat_id)
-    retriever = BM25Retriever.from_documents(docs, preprocess_func=preprocessing)
+    filtered_docs = filter_docs(docs, metadata_filters)
+    retriever = BM25Retriever.from_documents(filtered_docs, preprocess_func=preprocessing)
     retriever.k = k
     return retriever
 
 if __name__ == "__main__": 
-    bm25 = get_bm25_retriever("test", 3)
+    bm25 = get_bm25_retriever("test", 10, {"page": 5, "source": r"Docs\Attention is all you need.pdf"})
     # "test" is test chat id
-    # query is "What is Schedule from day 10 - 20?"
-    print("After preprocessing query:", preprocessing("What is Schedule from day 10 - 20?"))
-    answers = bm25.invoke("What is Schedule from day 10 - 20?")
+    # query is "What is scaled attention"
+    print("After preprocessing query:", preprocessing("What is scaled attention"))
+    answers = bm25.invoke("What is scaled attention")
     print(f"======Retrieved======")
     for doc in answers:
-        print(f"Metadata: {doc.metadata}\n page_content: {doc.page_content}")
+        print(f"Metadata: {doc.metadata}\npage_content: {doc.page_content[:100]}")
+        print("-"*50)

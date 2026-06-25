@@ -21,8 +21,11 @@ class Settings(BaseSettings):
     chunk_overlap: int = 150
 
     #Retrival
-    top_k: int = 4
+    top_k: int = 10
     fetch_k:int = 20
+
+    #Reranker
+    reranker_model: str = "BAAI/bge-reranker-base"
 
     #Uploads
     upload_size_limit: int = 20
