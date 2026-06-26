@@ -5,9 +5,14 @@ from config import settings
 from logger import logger
 from retrievers.hybrid import get_hybrid_retriever
 from retrievers.bm25 import get_bm25_retriever
+import streamlit as st
+
+@st.cache_resource(show_spinner=False)
+def get_crossencoder():
+    return CrossEncoder(model_name_or_path=settings.reranker_model)
 
 logger.info(f"Loading CrossEncoder: {settings.reranker_model}")
-model = CrossEncoder(model_name_or_path=settings.reranker_model)
+model = get_crossencoder()
 logger.info("Reranker Loaded")
 
 def reranker(query: str, docs: list[Document], top_k: int = 4, return_scores: bool = False):

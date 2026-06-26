@@ -27,15 +27,7 @@ PROMPT = ChatPromptTemplate.from_messages(
         or can benefit from retrieving information separately.
 
     - filtered
-        The query explicitly refers to a particular document,
-        page,
-        section,
-        chapter,
-        paper,
-        source,
-        author,
-        filename,
-        or any other metadata that restricts retrieval.
+        The query explicitly refers to a particular page
 
     2. Rewrite the query.
 
@@ -59,7 +51,7 @@ PROMPT = ChatPromptTemplate.from_messages(
 
     Only populate metadata_filter if the user explicitly refers to document metadata.
 
-    Supported metadata fields:
+    The only Supported metadata field:
 
     page:
         The page number explicitly mentioned by the user.
@@ -73,7 +65,6 @@ PROMPT = ChatPromptTemplate.from_messages(
     {{
         "page": 7
     }}
-
 
 
     4. Decompose only if necessary.

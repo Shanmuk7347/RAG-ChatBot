@@ -6,6 +6,7 @@ from langchain_community.retrievers import BM25Retriever
 from config import settings
 from logger import logger
 from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
+import streamlit as st
 
 
 def load_chunks(chat_id: str):
@@ -59,6 +60,7 @@ def filter_docs(docs: list[Document], metadata_filters: dict | None):
     return filtered_docs
 
 
+@st.cache_resource(show_spinner=False)
 def get_bm25_retriever(chat_id: str, k: int = settings.top_k, metadata_filters: dict | None = None):
     """ 
     Create a BM25 Retriever for a specific chat

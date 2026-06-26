@@ -8,6 +8,7 @@ from config import settings
 import streamlit as st
 import json
 from query.prompt import PROMPT
+from retry import safe_invoke
 
 Gemini_API_KEY = settings.gemini_api_key
 OpenAI_API_KEY = settings.openai_api_key
@@ -31,9 +32,22 @@ def get_understanding_chain(provider: str=settings.default_provider, model: str=
 
 def expand_query(query: str, provider: str=settings.default_provider, model: str= settings.default_model):
     chain = get_understanding_chain(provider, model)
-    expanded_query = chain.invoke(query)
-    content = expanded_query
-    return content
+    expanded_query = safe_invoke(chain, query)
+
+    # Fill in missing keys with defaults
+    expanded_query.setdefault("query_type", "simple")
+    expanded_query.setdefault("rewritten_query", query)
+    expanded_query.setdefault("metadata_filter", {})
+    expanded_query.setdefault("sub_queries", [])
+    expanded_query.setdefault("confidence", 0.0)
+
+    logger.info(f"query type: {expanded_query['query_type']}")
+    logger.info(f"rewritten query: {expanded_query['rewritten_query']}")
+    logger.info(f"metadata: {expanded_query['metadata_filter']}")
+    logger.info(f"sub queries: {expanded_query['sub_queries']}")
+
+    return expanded_query
+
 
 if __name__ == "__main__":
     queries =  ["what is vectorstore and comapre it with SQL", "what is attnetion", "What is the info in page 7"]

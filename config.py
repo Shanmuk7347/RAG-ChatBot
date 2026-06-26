@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     chunk_overlap: int = 150
 
     #Retrival
-    top_k: int = 10
+    top_k: int = 5
     fetch_k:int = 20
 
     #Reranker

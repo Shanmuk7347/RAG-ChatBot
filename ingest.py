@@ -4,6 +4,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter, MarkdownHea
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
+from retrievers.vector import get_vectorstore, get_collection_name
+from retrievers.bm25 import get_bm25_retriever
 from config import settings
 from logger import logger
 import time
@@ -32,8 +34,6 @@ class PyMuPDFMarkdownLoader(BaseLoader):
 
         return docs
 
-def get_collection_name(chat_id:str):
-    return f"chat_{chat_id}"
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=2, max=10),
     before_sleep=lambda k: logger.warning(f"Retrying for {k.fn.__name__} ({k.attempt_number}/3) because {type(k.outcome.exception()).__name__}"), reraise=True)
@@ -114,8 +114,14 @@ def build_vector_data(file_paths:list[str], chat_id:str):
     save_to_chroma(chunks, embeddings, chat_id)
     stop = time.perf_counter()
     logger.success("Database built and stored on disk.")
+
+    get_vectorstore.clear()
+    get_bm25_retriever.clear()
+
+    logger.info("Cleared VectorStore and BM25 caches.")
+
     logger.info(f"Loaded {len(file_paths)} documents")
-    logger.info(f"Ingestion completed in {(stop - start):.2f}s ")
+    logger.info(f"Ingestion completed in {time.perf_counter()-start:.2f}s ")
 
 if __name__ == "__main__":
     build_vector_data([r"Docs\Attention is all you need.pdf", r"Docs\Benchmarking.pdf", r"Docs\EnlightenGAN_Deep_Light_Enhancement_Without_Paired_Supervision_compressed.pdf"], "test")

@@ -1,5 +1,6 @@
 import streamlit as st
-from rag_chain import get_chain, get_vector_retriever, delete_chat_collection, get_vectorstore, rewriter
+from rag_chain import ask, delete_chat_collection, rewriter, understand_and_rerank
+from retrievers.vector import get_vectorstore
 from ingest import build_vector_data
 import os
 import uuid
@@ -144,6 +145,8 @@ with st.sidebar:
         with st.spinner("Deleting chat and associated data..."):
             if os.path.exists(f"./Docs/{chat["id"]}"):
                 shutil.rmtree(f"./Docs/{chat["id"]}")
+            if os.path.exists(f"./Data/{chat["id"]}.json"):
+                os.remove(f"./Data/{chat["id"]}.json")
             delete_chat_collection(chat["id"])
             delete_chat(chat["id"])
             get_vectorstore.clear()
@@ -179,33 +182,30 @@ if prompt := st.chat_input("Ask anything"):
 
 # Invoke retriever and chain to get the source and answers
     with st.spinner("Searching through the docs..."):
+
         Rewriter = rewriter(provider=provider, model=model)
-        rewritten_prompt = safe_invoke(Rewriter, {"history": history, "question": prompt})
-        logger.info(f"Rewritten prompt: {rewritten_prompt}")
+        rewriters_prompt = safe_invoke(Rewriter, {"history": history, "question": prompt})
+        logger.info(f"Rewritten prompt: {rewriters_prompt}")
         start = time.perf_counter()
-        Retriever = get_vector_retriever(chat_id=chat["id"])
-        sources = safe_invoke(Retriever, rewritten_prompt)
+        rewritten_prompt, reranked_docs = understand_and_rerank(chat["id"], rewriters_prompt)        
+        sources = reranked_docs
         end = time.perf_counter()
         elapsed = end - start
-        logger.info(f"retrived in {elapsed:.2f}s")
+        logger.info(f"retrived and understood the prompt in {elapsed:.2f}s")
         
 # Displaying the answer with streaming and sources
     response = ""
-    try:
-        chain = get_chain(chat["id"], provider=provider, model=model)
-    except Exception as e:
-        st.warning(f"Error! {e}")
-        logger.error(f"Error! {e}")
     with st.chat_message("assistant"):
         placeholder = st.empty()
         start = time.perf_counter()
-        for chunk in safe_stream(chain, rewritten_prompt):
+        for chunk in ask(chat_id=chat["id"], query=rewritten_prompt,docs=reranked_docs, provider=provider, model=model):
             response += chunk
             placeholder.markdown(response + "|")
         end = time.perf_counter()
         elapsed = end - start
         logger.info(f"Generated response in {elapsed:.2f}s using {provider}:{model}")
         placeholder.markdown(response)
+
         with st.expander("Sources"):
             for doc in sources:
                 st.caption(f"📝 {doc.metadata["source"]} | page {doc.metadata["page"]}")
